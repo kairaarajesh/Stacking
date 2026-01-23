@@ -68,7 +68,7 @@ complaintRoutes.post(
         message: "Server error",
       });
     }
-  }
+  },
 );
 
 complaintRoutes.get("/", async (req, res) => {
@@ -96,7 +96,7 @@ complaintRoutes.put("/:id", async (req, res) => {
     const updatedComplaint = await Complaint.findByIdAndUpdate(
       id,
       { $set: req.body },
-      { new: true, runValidators: true }
+      { new: true, runValidators: true },
     );
 
     if (!updatedComplaint) {
@@ -172,15 +172,6 @@ complaintRoutes.post("/ticket/:id", async (req, res) => {
     const { id } = req.params;
     const { message } = req.body;
 
-    const user = req.user;
-
-    if (!user) {
-      return res.status(401).json({
-        status: false,
-        message: "Unauthorized",
-      });
-    }
-
     if (!message) {
       return res.status(400).json({
         status: false,
@@ -188,27 +179,35 @@ complaintRoutes.post("/ticket/:id", async (req, res) => {
       });
     }
 
-    const ticket = await Ticket.findOneAndUpdate(
+    const complaintinfo = await Complaint.findOne({ ticket_id: id });
+
+    const complaint = await Ticket.findOneAndUpdate(
       { ticket_id: id },
       {
         $push: {
           messages: {
-            user_id: user._id,
-            first_name: user.first_name,
+            user_id: complaintinfo.user_id,
             message: message,
-            sender: "user",
+            Type: "user",
+            name: "user",
           },
         },
       },
-      { new: true, upsert: true }
+
+      { new: true, upsert: true },
     );
 
     res.status(200).json({
       status: true,
       message: "Message added successfully",
       data: {
-        ticket_id: ticket.ticket_id,
-        last_message: ticket.messages[ticket.messages.length - 1],
+        ticket_id: complaint.ticket_id,
+        user_id: complaint.user_id,
+        last_message: {
+            user_id: complaintinfo.user_id,
+            message: message,
+            sender: "user",
+        },
       },
     });
   } catch (error) {

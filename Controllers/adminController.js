@@ -2,7 +2,7 @@ const express = require("express");
 const {  validationResult } = require("express-validator");
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcryptjs");
-const adminModel =require("../models/admin.js") ;
+const adminModel =require("../models/admin.js");
 
 const adminRoutes = express.Router();
 
