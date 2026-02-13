@@ -8,7 +8,7 @@ const adminRoutes = express.Router();
 
 console.log(process.env.JWT_SECRET,);
 
-adminRoutes.post("/", async (req, res) => {
+adminRoutes.post("/register", async (req, res) => {
   try {
     const {
       name,
@@ -20,6 +20,15 @@ adminRoutes.post("/", async (req, res) => {
       permissions = [],
     } = req.body;
 
+    // 1️⃣ Validation
+    if (!name || !email || !password) {
+      return res.status(400).json({
+        status: false,
+        message: "Name, Email and Password are required",
+      });
+    }
+
+    // 2️⃣ Check existing admin
     const existingAdmin = await adminModel.findOne({ email });
     if (existingAdmin) {
       return res.status(409).json({
@@ -28,10 +37,8 @@ adminRoutes.post("/", async (req, res) => {
       });
     }
 
-    // hash password
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // create admin
     const admin = await adminModel.create({
       name,
       email,
@@ -42,35 +49,89 @@ adminRoutes.post("/", async (req, res) => {
       permissions,
     });
 
-    // JWT payload (IMPORTANT)
+    const adminData = admin.toObject();
+    delete adminData.password;
+
+    return res.status(201).json({
+      status: true,
+      message: "Admin registered successfully",
+      data: adminData, // ✅ no token here
+    });
+  } catch (error) {
+    console.error(error);
+
+    // duplicate email safety
+    if (error.code === 11000) {
+      return res.status(409).json({
+        status: false,
+        message: "Email already exists",
+      });
+    }
+
+    return res.status(500).json({
+      status: false,
+      message: "Internal server error",
+    });
+  }
+});
+
+
+adminRoutes.post("/login", async (req, res) => {
+  try {
+    const { email, password } = req.body;
+
+    // 1️⃣ Validation
+    if (!email || !password) {
+      return res.status(400).json({
+        status: false,
+        message: "Email and Password are required",
+      });
+    }
+
+    // 2️⃣ Find admin
+    const admin = await adminModel.findOne({ email });
+    if (!admin) {
+      return res.status(401).json({
+        status: false,
+        message: "Invalid email or password",
+      });
+    }
+
+    // 3️⃣ Compare password
+    const isMatch = await bcrypt.compare(password, admin.password);
+    if (!isMatch) {
+      return res.status(401).json({
+        status: false,
+        message: "Invalid email or password",
+      });
+    }
+
+    // 4️⃣ JWT payload
     const tokenPayload = {
       id: admin._id,
       role: admin.role,
       permissions: admin.permissions,
     };
 
-    // generate token
-    const token = jwt.sign(
-      tokenPayload,
-      process.env.JWT_SECRET ||"test",
-      { expiresIn: "1d" }
-    );
+    const token = jwt.sign(tokenPayload, process.env.JWT_SECRET, {
+      expiresIn: "1d",
+    });
 
-    // remove password
+    // 5️⃣ Remove password
     const adminData = admin.toObject();
     delete adminData.password;
 
-    res.status(201).json({
+    return res.status(200).json({
       status: true,
-      message: "Admin registered successfully",
+      message: "Login successful",
       token,
-      admin: adminData,
+      data: adminData,
     });
   } catch (error) {
     console.error(error);
-    res.status(500).json({
+    return res.status(500).json({
       status: false,
-      message: "Server error",
+      message: "Internal server error",
     });
   }
 });

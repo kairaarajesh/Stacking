@@ -8,19 +8,20 @@ userRoutes.get("/", async (req, res) => {
     const page = parseInt(req.query.page) || 1;
     const limit = 10;
     const skip = (page - 1) * limit;
-
-    const [users, total] = await Promise.all([
+  
+     
+    const [users, total] = await Promise.all([    
       User.find()
-        .select("-password")   // hide password
+        .select("-password") 
         .sort({ _id: -1 })
         .skip(skip)
         .limit(limit),
-
+      
       User.countDocuments()
     ]);
 
     const totalPages = Math.ceil(total / limit);
-
+  
     res.status(200).json({
       status: true,
       message: "Users fetched successfully",
